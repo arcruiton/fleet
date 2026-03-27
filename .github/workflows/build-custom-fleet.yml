@@ -51,6 +51,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Copy binary for Docker context
+        run: cp build/fleet fleet
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
