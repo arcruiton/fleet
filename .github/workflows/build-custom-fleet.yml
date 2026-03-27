@@ -1,0 +1,60 @@
+name: Build Custom Fleet Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build frontend (webpack)
+        run: NODE_ENV=production yarn run webpack --progress
+
+      - name: Embed frontend assets into Go
+        run: |
+          go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
+            -o=server/bindata/generated.go \
+            frontend/templates/ assets/... server/mail/templates
+
+      - name: Build Fleet binary
+        run: |
+          CGO_ENABLED=0 go build -tags full,fts5,netgo \
+            -o build/fleet \
+            ./cmd/fleet
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./tools/fleet-docker/Dockerfile
+          push: true
+          tags: ghcr.io/arcruiton/fleet:latest

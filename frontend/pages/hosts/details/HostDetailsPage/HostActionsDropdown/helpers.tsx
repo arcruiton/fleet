@@ -171,7 +171,6 @@ const canLockHost = ({
     isEnrolledInMdm;
 
   return (
-    isPremiumTier &&
     !isAndroid(hostPlatform) &&
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||

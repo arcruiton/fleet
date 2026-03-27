@@ -2377,11 +2377,21 @@ func deviceLockEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
 
-	return fleet.ErrMissingLicense
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	_, err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
+	return err
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2410,11 +2420,20 @@ func deviceWipeEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
 
-	return fleet.ErrMissingLicense
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return svc.mdmAppleCommander.EraseDevice(ctx, host, uuid.New().String())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
